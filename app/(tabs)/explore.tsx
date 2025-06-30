@@ -11,7 +11,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 export default function TabTwoScreen() {
   return (
     <View>
-      <Text>This is the Profile screen2</Text>
+      <Text style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>This is the Profile screen2</Text>
     </View>
   );
 }
