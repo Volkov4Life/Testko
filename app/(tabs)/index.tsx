@@ -1,15 +1,155 @@
-import { View, Button } from 'react-native';
-import { useRouter } from 'expo-router';
+import AnimatedBackground from "@/components/AnimatedBackground";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import React, { useState } from "react";
+import {Alert,KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
+import { auth } from "../../firebase";
+import { router } from "expo-router";
+import firebase from "firebase/compat/app";
 
-export default function HomeScreen() {
-  const router = useRouter();
+export default function AuthScreen() {
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [confPass, setConfPass] = useState("");
+
+  const handleLogin = async () => {
+    try {
+
+      if (isRegister && password !== confPass) {  //da je confirman password
+        Alert.alert('Napaka', 'Gesli se ne ujemata.');
+        return;
+      }
+      if (password.length < 6){
+        Alert.alert("Geslo mora imeti vsaj 6 znakov!")
+        return;
+      }
+  
+      if (isRegister){
+        await createUserWithEmailAndPassword(auth, email.trim(), password);
+        console.log("Successful register")
+      }else{
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+        console.log("Successful sign in")
+      }
+      
+      //redirect
+      router.push("/explore");
+
+    } catch (error: any) {
+      
+      if(error.message === "Firebase: Error (auth/email-already-in-use)."){  //custom error not sure kako drugac nrdit lol
+        Alert.alert("Napaka: Email je že registriran")
+        return;
+      }
+
+      Alert.alert("Napaka", error.message);
+    }
+  };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Button
-        title="Go to Explore"
-        onPress={() => router.push('/(tabs)/explore')}
-      />
-    </View>
+    <AnimatedBackground>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.formContainer}
+      >
+        <Text style={styles.title}>
+          {isRegister ? "Registracija" : "Prijava"}
+        </Text>
+
+        <TextInput
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          style={styles.input}
+          placeholderTextColor="#333"
+          maxLength={50}
+        />
+        <TextInput
+          placeholder="Uporabniško ime"
+          value={username}
+          onChangeText={setUsername}
+          style={styles.input}
+          placeholderTextColor="#333"
+          maxLength={25}
+        />
+        <TextInput
+          placeholder="Geslo"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor="#333"
+          maxLength={50}
+        />
+
+        {isRegister && (
+          <TextInput
+          placeholder="Potrdi geslo"
+          value={confPass}
+          onChangeText={setConfPass}
+          style={styles.input}
+          secureTextEntry
+          placeholderTextColor="#333"
+          maxLength={50}
+  />
+)}
+
+
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>
+            {isRegister ? "Registracija" : "Vpis"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
+          <Text style={styles.switchText}>
+            {isRegister
+              ? "Že imaš račun? Prijava"
+              : "Nimaš računa? Registracija"}
+          </Text>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </AnimatedBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  formContainer: {
+    width: "100%",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "600",
+    textAlign: "center",
+    color: "#01579b",
+    marginBottom: 32,
+  },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#81d4fa",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#e1f5fe",
+  },
+  button: {
+    backgroundColor: "#0288d1",
+    borderRadius: 8,
+    paddingVertical: 14,
+    marginTop: 8,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  switchText: {
+    textAlign: "center",
+    marginTop: 16,
+    color: "#01579b",
+    fontSize: 14,
+  },
+});
