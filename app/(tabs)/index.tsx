@@ -49,12 +49,8 @@ export default function AuthScreen() {
 
   return (
     <AnimatedBackground>
-      <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={20}
-      style={styles.formContainer}
-    >
-      <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
+      
+      
 
         <Text style={styles.title}>
           {isRegister ? "Registracija" : "Prijava"}
@@ -68,14 +64,18 @@ export default function AuthScreen() {
           placeholderTextColor="#333"
           maxLength={50}
         />
-        <TextInput
+        
+        {isRegister && ( 
+          <TextInput
           placeholder="Uporabniško ime"
           value={username}
           onChangeText={setUsername}
           style={styles.input}
           placeholderTextColor="#333"
-          maxLength={25}
+          maxLength={25}       
         />
+        )}
+
         <TextInput
           placeholder="Geslo"
           value={password}
@@ -112,8 +112,8 @@ export default function AuthScreen() {
               : "Nimaš računa? Registracija"}
           </Text>
         </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        
+      
     </AnimatedBackground>
   );
 }
@@ -156,5 +156,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: "#01579b",
     fontSize: 14,
+    marginBottom: 150,
   },
 });
