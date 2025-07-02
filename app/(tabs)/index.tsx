@@ -1,10 +1,10 @@
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import React, { useState } from "react";
-import {Alert,KeyboardAvoidingView, ScrollView, Platform, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
+import {Alert, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
 import { auth } from "../../firebase";
 import { router } from "expo-router";
-import firebase from "firebase/compat/app";
+
 
 export default function AuthScreen() {
   const [isRegister, setIsRegister] = useState(false);
@@ -40,6 +40,12 @@ export default function AuthScreen() {
       
       if(error.message === "Firebase: Error (auth/email-already-in-use)."){  //custom error not sure kako drugac nrdit lol
         Alert.alert("Napaka: Email je že registriran")
+        return;
+      }else if(error.message === "Firebase: Error (auth/invalid-credential)."){  //custom error not sure kako drugac nrdit lol
+        Alert.alert("Napaka: Napačen email ali geslo")
+        return;
+      }else if(error.message === "Firebase: Error (auth/invalid-email)."){  //custom error not sure kako drugac nrdit lol
+        Alert.alert("Napaka: Neveljaven email")
         return;
       }
 
