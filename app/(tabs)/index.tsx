@@ -1,7 +1,7 @@
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import React, { useState } from "react";
-import {Alert,KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
+import {Alert,KeyboardAvoidingView, ScrollView, Platform, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
 import { auth } from "../../firebase";
 import { router } from "expo-router";
 import firebase from "firebase/compat/app";
@@ -27,10 +27,10 @@ export default function AuthScreen() {
   
       if (isRegister){
         await createUserWithEmailAndPassword(auth, email.trim(), password);
-        console.log("Successful register")
+        console.log("Successful register") //removi to k bo login koncan
       }else{
         await signInWithEmailAndPassword(auth, email.trim(), password);
-        console.log("Successful sign in")
+        console.log("Successful sign in")  //removi to k bo login koncan
       }
       
       //redirect
@@ -50,9 +50,12 @@ export default function AuthScreen() {
   return (
     <AnimatedBackground>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.formContainer}
-      >
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={20}
+      style={styles.formContainer}
+    >
+      <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
+
         <Text style={styles.title}>
           {isRegister ? "Registracija" : "Prijava"}
         </Text>
@@ -109,6 +112,7 @@ export default function AuthScreen() {
               : "Nimaš računa? Registracija"}
           </Text>
         </TouchableOpacity>
+        </ScrollView>
       </KeyboardAvoidingView>
     </AnimatedBackground>
   );
@@ -117,6 +121,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   formContainer: {
     width: "100%",
+    
   },
   title: {
     fontSize: 32,

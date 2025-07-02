@@ -7,12 +7,20 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import AnimatedBackground from '@/components/AnimatedBackground';
+import AppButton from '@/components/AppButton';
+import ProfileButton from '@/components/ProfileButton';
+import { router, Router } from 'expo-router';
+
 
 export default function TabTwoScreen() {
   return (
-    <View>
-      <Text>Drugi zaslon</Text>
-    </View>
+    <AnimatedBackground>
+      <View>
+        <AppButton text="Srednje šole" onPress={() => router.push("/srednje")}/>
+        <ProfileButton onPress={() => router.push("/profil")}/>
+      </View>
+    </AnimatedBackground>
   );
 }
 

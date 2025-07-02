@@ -13,7 +13,7 @@ export default function AnimatedBackground({ children }: { children: React.React
   const progress = useSharedValue(0);
 
   React.useEffect(() => {
-    progress.value = withRepeat(withTiming(1, { duration: 5000 }), -1, true);
+    progress.value = withRepeat(withTiming(1, { duration: 6000 }), -1, true);
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {
