@@ -1,9 +1,10 @@
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import React, { useState } from "react";
-import {Alert, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
+import {Alert, View, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
 import { auth } from "../../firebase";
 import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 
 export default function AuthScreen() {
@@ -56,7 +57,7 @@ export default function AuthScreen() {
   return (
     <AnimatedBackground>
       
-      
+      <SafeAreaView>
 
         <Text style={styles.title}>
           {isRegister ? "Registracija" : "Prijava"}
@@ -113,13 +114,11 @@ export default function AuthScreen() {
 
         <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
           <Text style={styles.switchText}>
-            {isRegister
-              ? "Že imaš račun? Prijava"
-              : "Nimaš računa? Registracija"}
+            {isRegister ? "Že imaš račun? Prijava" : "Nimaš računa? Registracija"}
           </Text>
-        </TouchableOpacity>
-        
-      
+        </TouchableOpacity> 
+        <View style={styles.shiftUp}/>     
+      </SafeAreaView>
     </AnimatedBackground>
   );
 }
@@ -162,6 +161,10 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: "#01579b",
     fontSize: 14,
-    marginBottom: 150,
+    
   },
+  shiftUp: {
+    marginTop: 150,
+  }
+  
 });

@@ -1,32 +1,33 @@
 import React from 'react';
-import { Text, StyleSheet } from "react-native";
+import { Text, StyleSheet, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface NaslovProps{
-    text: string;
+interface NaslovProps {
+  text?: string;
 }
 
-
-
-const Naslov = (props: NaslovProps) => {
-
-    return(
-        <SafeAreaView style={{ flex: 1 }}>
-            <Text style={styles.text}>{props.text}</Text>
-        </SafeAreaView>
-        
-    )
-}
+const Naslov = ({ text = "TESTKO" }: NaslovProps) => {
+  return (
+    <SafeAreaView>
+      <View style={styles.container}>
+        <Text style={styles.text}>{text}</Text>
+      </View>
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
-text: {
+  
+  container: {
+    alignItems: 'center', 
+  },
+  text: {
     color: '#fff',
     fontSize: 32,
     fontWeight: '600',
+    marginTop: -250, 
+    marginBottom: 300,
   },
-
 });
-
-
 
 export default Naslov;
