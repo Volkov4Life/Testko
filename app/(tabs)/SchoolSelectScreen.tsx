@@ -6,6 +6,7 @@ import { TextInput, FlatList, ActivityIndicator, Alert, Text, StyleSheet,} from 
 import { useState, useEffect } from "react";
 import {  collection,  getDocs,  query,  orderBy,  limit,  startAfter,  DocumentData,} from "firebase/firestore";
 import { db } from "../../firebase";
+import { router, Router } from "expo-router";
 
 interface School {
   id: string;
@@ -103,7 +104,9 @@ const SchoolSelectScreen = () => {
             <SchoolCard
               title={item.title}
               onPress={() => {
-                console.log("Selected:", item.title);
+                //console.log("Selected:", item.title);
+                router.push({pathname: "/school", params: { id: item.id, title: item.title, numOfYears: item.numOfYears?.toString() || "0",
+                   subjects: JSON.stringify(item.subjects || [])}});
               }}
             />
           )}
@@ -128,6 +131,7 @@ const styles = StyleSheet.create({
   searchInput: {
     height: 40,
     margin: 16,
+    marginTop: -100,
     borderColor: "#007BFF",
     borderWidth: 1,
     borderRadius: 8,

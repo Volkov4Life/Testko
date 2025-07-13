@@ -21,9 +21,11 @@ export default function RootLayout() {
     <>
       <Stack>
         <Stack.Screen name="(tabs)/index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)/school" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)/explore" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)/profil" options={{ headerShown: false }}/>
         <Stack.Screen name="(tabs)/SchoolSelectScreen" options={{ headerShown: false }}/>
+        <Stack.Screen name="(tabs)/SubjectScreen" options={{ headerShown: false }}/>
         <Stack.Screen name="+not-found"options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
