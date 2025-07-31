@@ -25,7 +25,7 @@ const SchoolScreen = () => {
             </View>
           }
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.subjectBox} onPress={() => {console.log(id + " " + numOfYears + " " + item); 
+            <TouchableOpacity style={styles.subjectBox} onPress={() => {/*console.log(id + " " + numOfYears + " " + item);*/ 
                 router.push({pathname: "/SubjectScreen", params: { schoolID: id, numOfYears, subject: item }})}}>
               <Text style={styles.subjectText}>{item}</Text>
             </TouchableOpacity>

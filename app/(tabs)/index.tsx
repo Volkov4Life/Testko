@@ -2,9 +2,11 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import React, { useState } from "react";
 import {Alert, View, StyleSheet, Text, TextInput, TouchableOpacity} from "react-native";
-import { auth } from "../../firebase";
+import { auth, db } from "../../firebase";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { doc, setDoc } from "firebase/firestore";
+
 
 
 export default function AuthScreen() {
@@ -26,13 +28,30 @@ export default function AuthScreen() {
         return;
       }
   
-      if (isRegister){
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
-        console.log("Successful register") //removi to k bo login koncan
-      }else{
-        await signInWithEmailAndPassword(auth, email.trim(), password);
-        console.log("Successful sign in")  //removi to k bo login koncan
-      }
+      if (isRegister) {
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email.trim(),
+    password.trim()
+  );
+
+  const user = userCredential.user;
+
+  
+  await setDoc(doc(db, "users", user.uid), {
+    email: user.email,
+    createdAt: new Date(),
+    saved: [],
+    editor: 0,
+    displayName: username,
+  });
+
+  console.log("Successfully registered & Firestore user created");
+
+} else {
+  await signInWithEmailAndPassword(auth, email.trim(), password.trim());
+  console.log("Successful sign in");
+}
       
       //redirect
       router.push("/explore");

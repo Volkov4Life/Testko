@@ -2,22 +2,14 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useState, useEffect, useRef } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, getDoc, query, where, doc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { db } from "../../firebase";
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  Image,
-  View,
-  TouchableOpacity,
-  Dimensions,
-  Modal,
-  ActivityIndicator,
-  Animated,
-} from "react-native";
+import { getAuth } from "firebase/auth";
+import { FlatList, StyleSheet, Text, Image, View, TouchableOpacity, Dimensions, Modal, ActivityIndicator, Animated, } from "react-native";
 import ImageViewer from "react-native-image-zoom-viewer";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+
 
 interface Params {
   schoolID: string;
@@ -62,65 +54,79 @@ const SubjectScreen = () => {
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
-        duration: 150,
+        duration: 500,
         useNativeDriver: true,
       }),
     ]).start();
   };
 
   useEffect(() => {
-    if (!schoolID || !subject) return;
+  if (!schoolID || !subject) return;
 
-    const fetchTests = async () => {
-      setLoading(true);
+  const fetchTestsAndLikes = async () => {
+    setLoading(true);
 
-      const q = query(
-        collection(db, "tests"),
-        where("schoolID", "==", parseInt(schoolID)),
-        where("predmet", "==", subject),
-        where("letnik", "==", selectedYear)
-      );
+    const q = query(
+      collection(db, "tests"),
+      where("schoolID", "==", schoolID),
+      where("predmet", "==", subject),
+      where("letnik", "==", selectedYear)
+    );
 
-      const snapshot = await getDocs(q);
+    const snapshot = await getDocs(q);
+    const groupedByYear: { [year: string]: ImageItem[] } = {};
 
-      const groupedByYear: { [year: string]: ImageItem[] } = {};
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      const year = data.year;
+      const slike: string[] = data.slike;
+      const keywords: string[] = data.keywords || [];
+      const prof: string = data.prof || "";
 
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        const year = data.year;
-        const slike: string[] = data.slike;
-        const keywords: string[] = data.keywords || [];
-        const prof: string = data.prof || "";
+      if (!year || !slike) return;
 
-        if (!year || !slike) return;
+      if (!groupedByYear[year]) {
+        groupedByYear[year] = [];
+      }
 
-        if (!groupedByYear[year]) {
-          groupedByYear[year] = [];
-        }
+      const imageItems: ImageItem[] = slike.map((url) => ({ url, keywords, prof, }));
+      groupedByYear[year].push(...imageItems);
+    });
 
-        const imageItems: ImageItem[] = slike.map((url) => ({
-          url,
-          keywords,
-          prof,
-        }));
+    const sorted = Object.entries(groupedByYear)
+      .sort((a, b) => {
+        const aYear = parseInt(a[0].split("/")[0]);
+        const bYear = parseInt(b[0].split("/")[0]);
+        return bYear - aYear;
+      })
+      .map(([year, images]) => ({ year, images }));
 
-        groupedByYear[year].push(...imageItems);
-      });
+    setGroupedImages(sorted);
 
-      const sorted = Object.entries(groupedByYear)
-        .sort((a, b) => {
-          const aYear = parseInt(a[0].split("/")[0]);
-          const bYear = parseInt(b[0].split("/")[0]);
-          return bYear - aYear;
-        })
-        .map(([year, images]) => ({ year, images }));
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const userDocRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userDocRef);
 
-      setGroupedImages(sorted);
-      setLoading(false);
-    };
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const saved = userData.saved || [];
+        setLikedImages(new Set(saved));
+      } else {
+        console.log("No user doc found");
+      }
+    } else {
+      console.log("No user signed in");
+      setLikedImages(new Set());
+    }
 
-    fetchTests();
-  }, [schoolID, subject, selectedYear]);
+    setLoading(false);
+  };
+
+  fetchTestsAndLikes();
+}, [schoolID, subject, selectedYear]);
+
 
   const cycleYear = () => {
     const currentIndex = yearOptions.indexOf(selectedYear);
@@ -128,35 +134,75 @@ const SubjectScreen = () => {
     setSelectedYear(yearOptions[nextIndex]);
   };
 
+
   const openModal = (images: ImageItem[], index: number) => {
     setCurrentImages(images);
     setModalImageIndex(index);
     setIsModalVisible(true);
   };
 
-  const toggleLike = (url: string) => {
-    setLikedImages((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(url)) {
-        newSet.delete(url);
-      } else {
-        newSet.add(url);
-        pulseHeart();
-      }
-      return newSet;
-    });
-  };
+
+  const toggleLike = async (url: string) => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    console.log("No user is signed in");
+    return;
+  }
+
+  setLikedImages((prev) => {
+    const newSet = new Set(prev);
+
+    if (newSet.has(url)) {
+      //Remove from local state
+      newSet.delete(url);
+      console.log("Unliked");
+
+      //Remove from Firestore
+      updateDoc(doc(db, "users", user.uid), {
+        saved: arrayRemove(url),
+      }).catch((error) => {
+        console.error("Error removing from saved:", error);
+      });
+
+    } else {
+      //Add to local state
+      newSet.add(url);
+      pulseHeart();
+
+      //Add to Firestore
+      updateDoc(doc(db, "users", user.uid), {
+        saved: arrayUnion(url),
+      }).catch((error) => {
+        console.error("Error adding to saved:", error);
+      });
+
+      console.log("Liked");
+    }
+
+    return newSet;
+  });
+};
+
 
   return (
     <AnimatedBackground>
       <SafeAreaView style={{ flex: 1 }}>
         <Text style={styles.heading}>{subject}</Text>
         <View style={styles.header}>
-          <TouchableOpacity onPress={cycleYear} style={styles.yearButton}>
-            <Text style={styles.yearButtonText}>Letnik: {selectedYear}</Text>
-          </TouchableOpacity>
-        </View>
 
+  <TouchableOpacity
+    onPress={() => {router.push({ pathname: "/(tabs)/objavi", params: { schoolID: schoolID, subject: subject}});}} style={styles.uploadButton}>
+    <Ionicons name="cloud-upload-outline" size={24} color="#fff" />
+  </TouchableOpacity>
+
+  <TouchableOpacity onPress={cycleYear} style={styles.yearButton}>
+    <Text style={styles.yearButtonText}>Letnik: {selectedYear}</Text>
+  </TouchableOpacity>
+
+  
+</View>
         {loading ? (
           <ActivityIndicator
             size="large"
@@ -164,7 +210,7 @@ const SubjectScreen = () => {
             style={{ marginTop: 50 }}
           />
         ) : groupedImages.length === 0 ? (
-          <Text style={styles.noTests}>No tests found</Text>
+          <Text style={styles.noTests}>Ni testov</Text>
         ) : (
           <FlatList
             data={groupedImages}
@@ -358,6 +404,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#555",
   },
+  uploadButton: {
+    backgroundColor: "#3C2E97",
+    padding: 8,
+    borderRadius: 8,
+    marginLeft: 10,
+    color: "fff",
+    fontWeight: "bold",
+    fontSize: 16,
+    marginRight: 8,
+    
+},
+  
+
 });
 
 export default SubjectScreen;
