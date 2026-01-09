@@ -2,6 +2,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BackButton from "@/components/BackButton";
 
 const SchoolScreen = () => {
   const { id, title, subjects, numOfYears } = useLocalSearchParams();
@@ -13,6 +14,8 @@ const SchoolScreen = () => {
   return (
     <AnimatedBackground>
       <SafeAreaView style={{ flex: 1 }}>
+
+        <BackButton/>
         <FlatList
           data={parsedSubjects}
           keyExtractor={(item, index) => index.toString()}

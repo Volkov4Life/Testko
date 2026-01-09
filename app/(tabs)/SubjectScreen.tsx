@@ -9,6 +9,7 @@ import { FlatList, StyleSheet, Text, Image, View, TouchableOpacity, Dimensions, 
 import ImageViewer from "react-native-image-zoom-viewer";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import BackButton from "@/components/BackButton";
 
 
 interface Params {
@@ -36,7 +37,7 @@ const SubjectScreen = () => {
   const yearOptions = Array.from({ length: yearsCount }, (_, i) => i + 1);
 
   const [selectedYear, setSelectedYear] = useState(yearOptions[0]);
-  const [groupedImages, setGroupedImages] = useState<{ year: string; images: ImageItem[] }[]>([]);
+  const [groupedImages, setGroupedImages] = useState<GroupedTests[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [currentImages, setCurrentImages] = useState<ImageItem[]>([]);
@@ -44,6 +45,20 @@ const SubjectScreen = () => {
   const [loading, setLoading] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  interface TestItem {
+  docId: string;
+  keywords: string[];
+  prof: string;
+  images: string[]; // all images for this test
+}
+
+interface GroupedTests {
+  year: string;
+  tests: TestItem[];
+}
+
+
 
   const pulseHeart = () => {
     Animated.sequence([
@@ -74,34 +89,34 @@ const SubjectScreen = () => {
     );
 
     const snapshot = await getDocs(q);
-    const groupedByYear: { [year: string]: ImageItem[] } = {};
+    const groupedByYear: { [year: string]: TestItem[] } = {};
 
-    snapshot.docs.forEach((doc) => {
-      const data = doc.data();
-      const year = data.year;
-      const slike: string[] = data.slike;
-      const keywords: string[] = data.keywords || [];
-      const prof: string = data.prof || "";
+snapshot.docs.forEach((doc) => {
+  const data = doc.data();
+  const year = data.year;
+  const slike: string[] = data.slike;
+  const keywords: string[] = data.keywords || [];
+  const prof: string = data.prof || "";
 
-      if (!year || !slike) return;
+  if (!year || !slike || slike.length === 0) return;
 
-      if (!groupedByYear[year]) {
-        groupedByYear[year] = [];
-      }
+  if (!groupedByYear[year]) groupedByYear[year] = [];
 
-      const imageItems: ImageItem[] = slike.map((url) => ({ url, keywords, prof, }));
-      groupedByYear[year].push(...imageItems);
-    });
+  groupedByYear[year].push({
+    docId: doc.id,
+    keywords,
+    prof,
+    images: slike,
+  });
+});
 
-    const sorted = Object.entries(groupedByYear)
-      .sort((a, b) => {
-        const aYear = parseInt(a[0].split("/")[0]);
-        const bYear = parseInt(b[0].split("/")[0]);
-        return bYear - aYear;
-      })
-      .map(([year, images]) => ({ year, images }));
+const sorted: GroupedTests[] = Object.entries(groupedByYear)
+  .sort((a, b) => parseInt(b[0].split("/")[0]) - parseInt(a[0].split("/")[0]))
+  .map(([year, tests]) => ({ year, tests }));
 
-    setGroupedImages(sorted);
+setGroupedImages(sorted);
+
+
 
     const auth = getAuth();
     const user = auth.currentUser;
@@ -189,6 +204,10 @@ const SubjectScreen = () => {
   return (
     <AnimatedBackground>
       <SafeAreaView style={{ flex: 1 }}>
+
+        <BackButton style={{ position: "absolute", top: 40, left: 20, zIndex: 10 }} />
+
+
         <Text style={styles.heading}>{subject}</Text>
         <View style={styles.header}>
 
@@ -213,64 +232,68 @@ const SubjectScreen = () => {
           <Text style={styles.noTests}>Ni testov</Text>
         ) : (
           <FlatList
-            data={groupedImages}
-            keyExtractor={(item) => item.year}
-            pagingEnabled
-            snapToAlignment="center"
-            decelerationRate="fast"
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <View style={{ height: screenHeight, justifyContent: "center" }}>
-                <Text style={styles.yearLabel}>{item.year}</Text>
+  data={groupedImages}
+  keyExtractor={(item) => item.year}
+  pagingEnabled
+  snapToAlignment="center"
+  decelerationRate="fast"
+  showsVerticalScrollIndicator={false}
+  renderItem={({ item }) => (
+    <View style={{ height: screenHeight, justifyContent: "center" }}>
+      <Text style={styles.yearLabel}>{item.year}</Text>
 
-                <FlatList
-                  data={item.images}
-                  horizontal
-                  pagingEnabled
-                  snapToAlignment="center"
-                  decelerationRate="fast"
-                  snapToInterval={screenWidth}
-                  showsHorizontalScrollIndicator={false}
-                  keyExtractor={(_, i) => String(i)}
-                  renderItem={({ item: imageItem, index }) => (
-                    <View style={styles.imageContainer}>
-                      <Text style={styles.keywords}>
-                        {imageItem.keywords.join(", ")}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => openModal(item.images, index)}
-                      >
-                        <Image
-                          source={{ uri: imageItem.url }}
-                          style={styles.image}
-                          resizeMode="contain"
-                        />
-                      </TouchableOpacity>
-                      <Text style={styles.prof}>Prof: {imageItem.prof}</Text>
-                      <TouchableOpacity
-                        onPress={() => toggleLike(imageItem.url)}
-                        style={styles.likeButton}
-                      >
-                        <Animated.View
-                          style={{ transform: [{ scale: scaleAnim }] }}
-                        >
-                          <Ionicons
-                            name={
-                              likedImages.has(imageItem.url)
-                                ? "heart"
-                                : "heart-outline"
-                            }
-                            size={34}
-                            color="#0070BB"
-                          />
-                        </Animated.View>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+      <FlatList
+        data={item.tests} // now each item is a test, not a single image
+        horizontal
+        pagingEnabled
+        snapToAlignment="center"
+        decelerationRate="fast"
+        snapToInterval={screenWidth}
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(test) => test.docId}
+        renderItem={({ item: test, index }) => (
+          <View style={styles.imageContainer}>
+            <Text style={styles.keywords}>{test.keywords.join(", ")}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                const imageItems = test.images.map((url) => ({
+                  url,
+                  keywords: test.keywords,
+                  prof: test.prof,
+                }));
+                openModal(imageItems, 0);
+              }}
+            >
+              <Image
+                source={{ uri: test.images[0] }}
+                style={styles.image}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            <Text style={styles.prof}>Prof: {test.prof}</Text>
+            <TouchableOpacity
+              onPress={() => toggleLike(test.images[0])}
+              style={styles.likeButton}
+            >
+              <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                <Ionicons
+                  name={
+                    likedImages.has(test.images[0])
+                      ? "heart"
+                      : "heart-outline"
+                  }
+                  size={34}
+                  color="#0070BB"
                 />
-              </View>
-            )}
-          />
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    </View>
+  )}
+/>
+
         )}
 
         {/* Fullscreen Zoom Modal */}

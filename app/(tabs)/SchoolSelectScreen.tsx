@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import {  collection,  getDocs,  query,  orderBy,  limit,  startAfter,  DocumentData,} from "firebase/firestore";
 import { db } from "../../firebase";
 import { router, Router } from "expo-router";
+import BackButton from "@/components/BackButton";
 
 interface School {
   id: string;
@@ -41,10 +42,13 @@ const SchoolSelectScreen = () => {
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        const newSchools = snapshot.docs.map((doc) => ({
+        const newSchools = snapshot.docs.map((doc) => {
+        const data = doc.data() || {}; 
+          return {
           id: doc.id,
-          ...doc.data(),
-        })) as School[];
+          ...(data as Record<string, any>),
+          };
+        }) as School[];
 
         setSchools((prev) => [...prev, ...newSchools]);
         setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
@@ -87,6 +91,9 @@ const SchoolSelectScreen = () => {
   return (
     <AnimatedBackground>
       <SafeAreaView style={{ flex: 1 }}>
+
+        <BackButton/>
+
         <Naslov text="Izberi svojo šolo" />
 
         <TextInput

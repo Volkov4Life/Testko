@@ -27,6 +27,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)/SchoolSelectScreen" options={{ headerShown: false }}/>
         <Stack.Screen name="(tabs)/SubjectScreen" options={{ headerShown: false }}/>
         <Stack.Screen name="(tabs)/objavi" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)/LikedTestsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found"options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />

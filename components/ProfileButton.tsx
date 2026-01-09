@@ -12,7 +12,7 @@ const ProfileButton: React.FC<ProfileButtonProps> = ({ onPress, showIcon = true 
   return (
     <TouchableOpacity style={styles.button} onPress={onPress} activeOpacity={0.8}>
       {showIcon ? (
-        <Ionicons name="person-circle-outline" size={32} color="#01579b" />
+        <Ionicons name="heart" size={32} color="#01579b" />
       ) : (
         <Text style={styles.text}>Profil</Text>
       )}

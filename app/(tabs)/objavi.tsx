@@ -1,16 +1,27 @@
-import React, { useState } from "react";
-import {  View,  Text,  TextInput,  TouchableOpacity,  StyleSheet,  ScrollView,  Image,  Alert,} from "react-native";
-import { Picker } from "@react-native-picker/picker";
-import * as ImagePicker from "expo-image-picker";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import * as Crypto from "expo-crypto";
+import { supabase } from "@/supabaseClient";
+import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "@react-navigation/native";
+import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
 import { getAuth } from "firebase/auth";
-import { getFirestore, collection, addDoc } from "firebase/firestore";
-import { getApp } from "firebase/app";
+import { addDoc, collection, getFirestore } from "firebase/firestore";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 //import { db } from "../../firebase"; // Adjust this import to your firebase config!
-
-
+import * as ImageManipulator from "expo-image-manipulator";
 
 export default function UploadTestScreen() {
   const navigation = useNavigation();
@@ -22,8 +33,56 @@ export default function UploadTestScreen() {
   const [yearLevel, setYearLevel] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
+  const compressImage = async (uri: string) => {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1280 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return result.uri;
+  };
+
+  const uploadImageToSupabase = async (uri: string, userId: string) => {
+    try {
+      console.log("Uploading image");
+
+      const base64Data = await FileSystem.readAsStringAsync(uri, {
+        encoding: "base64"
+,
+      });
+
+      const binaryData = Uint8Array.from(atob(base64Data), (c) =>
+        c.charCodeAt(0)
+      );
+
+      const fileName = `${userId}/${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 8)}.jpg`;
+
+      const { error } = await supabase.storage
+        .from("slike")
+        .upload(fileName, binaryData, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Error uploading to Supabase:", error);
+        return null;
+      }
+
+      const { data } = supabase.storage.from("slike").getPublicUrl(fileName);
+      console.log("Uploaded image URL:", data.publicUrl);
+
+      return data.publicUrl;
+    } catch (err) {
+      console.error("Error uploading image:", err);
+      return null;
+    }
+  };
+
   const generateSchoolYears = () => {
-    const years = [];
+    const years: string[] = [];
     const currentYear = new Date().getFullYear() % 100;
     for (let i = 0; i < 10; i++) {
       const start = currentYear - i - 1;
@@ -34,80 +93,151 @@ export default function UploadTestScreen() {
   };
 
   const sanitizeKeywords = (text: string) => {
-  return text
-    .split(/[\s:]+/)
-    .map(word => word.replace(/[.:;,"'<>]/g, ""))
-    .filter(Boolean);
-};
-    const uploadTest = async () => {
-  const auth = getAuth();
-  const db = getFirestore();
-  
-
-  const user = auth.currentUser;
-  if (!user) {
-    Alert.alert("Napaka", "Uporabnik ni prijavljen.");
-    return;
-  }
-
-  const cleanedKeywords = sanitizeKeywords(keywords);
-
-  const testData = {
-    keywords: cleanedKeywords,
-    year: yearTaken,
-    prof: professor,
-    schoolID: schoolID,
-    letnik: parseInt(yearLevel),
-    predmet: subject,
-    owner: user.uid,
-    createdAt: new Date(),
+    return text
+      .split(/[\s:]+/)
+      .map((word) => word.replace(/[.:;,"'<>]/g, ""))
+      .filter(Boolean);
   };
 
-  try {
-    const docRef = await addDoc(collection(db, "tests"), testData);
-    console.log("Test uploaded with ID: ", docRef.id);
-    Alert.alert("Objavljeno", "Test je bil uspešno objavljen!");
-    navigation.goBack();
-  } catch (error) {
-    console.error("Error uploading test:", error);
-    Alert.alert("Napaka", "Napaka pri nalaganju testa.");
-  }
-};
+  const [isUploading, setIsUploading] = useState(false);
 
+  const uploadTest = async () => {
+    const auth = getAuth();
+    const db = getFirestore();
 
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("Napaka", "Uporabnik ni prijavljen.");
+      return;
+    }
+    const cleanedKeywords = sanitizeKeywords(keywords);
 
+    //compress in upload
+    try {
+      setIsUploading(true);
+      const uploadedImageUrls: string[] = [];
+      for (const uri of images) {
+        const compressedUri = await compressImage(uri);
+        const url = await uploadImageToSupabase(compressedUri, user.uid);
+        if (url) uploadedImageUrls.push(url);
+      }
+
+      const testData = {
+        keywords: cleanedKeywords,
+        year: yearTaken,
+        prof: professor,
+        schoolID: schoolID,
+        letnik: parseInt(yearLevel),
+        predmet: subject,
+        slike: uploadedImageUrls,
+        owner: user.uid,
+        createdAt: new Date(),
+      };
+
+      const docRef = await addDoc(collection(db, "tests"), testData);
+      const allYears = 4;
+      //console.log("Test uploaded with ID:", docRef.id);
+
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error uploading test:", error);
+      Alert.alert("Napaka", "Napaka pri nalaganju testa.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const yearOptions = generateSchoolYears();
   const yearLevels = ["1", "2", "3", "4"];
 
+
+
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert("Dostop do slik", "Testko potrebuje dovoljenje za dostop do slik.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const selectedUris = result.assets.map((asset) => asset.uri);
-      setImages((prev) => [...prev, ...selectedUris]);
-    }
-  };
-
-  const handleSubmit = () => {
-  if (!keywords || !yearTaken || !professor || !yearLevel || images.length === 0) {
-    Alert.alert("Nepopolni podatki", "Prosimo, izpolnite vsa polja in dodajte vsaj eno sliko.");
+  const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permissionResult.granted) {
+    Alert.alert("Dostop do slik", "Testko potrebuje dovoljenje za dostop do slik.");
     return;
   }
 
-  uploadTest();
+  if (images.length >= 4) {
+    Alert.alert("Omejitev", "Lahko naložiš največ 4 slike.");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsMultipleSelection: true,
+    quality: 1,
+    base64: true,
+  });
+
+  if (!result.canceled) {
+    const uniqueNewUris: string[] = [];
+
+    for (const asset of result.assets) {
+      const { uri, base64 } = asset;
+      if (!base64) continue;
+
+      const hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA1,
+        base64.slice(0, 200) 
+      );
+
+      const existingHashes = await Promise.all(
+        images.map(async (imgUri) => {
+          const data = await FileSystem.readAsStringAsync(imgUri, { encoding: "base64" });
+          return await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA1,
+            data.slice(0, 200)
+          );
+        })
+      );
+
+      if (existingHashes.includes(hash)) {
+        Alert.alert("Podvojena slika", "Ta slika je že dodana.");
+        continue;
+      }
+
+      const fileInfo = (await FileSystem.getInfoAsync(uri)) as FileSystem.FileInfo & {
+        size?: number;
+      };
+
+      //največ 12MB
+      const maxSize = 12;
+      
+      if (fileInfo.size && fileInfo.size > maxSize * 1024 * 1024) {
+        Alert.alert("Prevelika slika", "Vsaka slika mora biti manjša od " +  maxSize + " MB.");
+        continue;
+      }
+
+      uniqueNewUris.push(uri);
+    }
+
+    const combined = [...images, ...uniqueNewUris].slice(0, 4);
+    setImages(combined);
+  }
 };
 
+
+
+
+  const handleSubmit = () => {
+    if (
+      !keywords ||
+      !yearTaken ||
+      !professor ||
+      !yearLevel ||
+      images.length === 0
+    ) {
+      Alert.alert(
+        "Nepopolni podatki",
+        "Prosimo, izpolnite vsa polja in dodajte vsaj eno sliko."
+      );
+      return;
+    }
+
+    uploadTest();
+  };
 
   return (
     <AnimatedBackground>
@@ -177,21 +307,27 @@ export default function UploadTestScreen() {
           </TouchableOpacity>
 
           <View style={styles.imagePreviewContainer}>
-  {images.map((uri, index) => (
-    <View key={index} style={styles.imageWrapper}>
-      <Image source={{ uri }} style={styles.imagePreview} />
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => {
-          setImages(images.filter((_, i) => i !== index));
-        }}
-      >
-        <Text style={styles.removeButtonText}>✕</Text>
-      </TouchableOpacity>
-    </View>
-  ))}
-</View>
+            {images.map((uri, index) => (
+              <View key={index} style={styles.imageWrapper}>
+                <Image source={{ uri }} style={styles.imagePreview} />
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => {
+                    setImages(images.filter((_, i) => i !== index));
+                  }}
+                >
+                  <Text style={styles.removeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
 
+          {isUploading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#fff" />
+              <Text style={styles.loadingText}>Nalaganje testa...</Text>
+            </View>
+          )}
 
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
             <Text style={styles.submitButtonText}>Objavi</Text>
@@ -285,25 +421,41 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   imageWrapper: {
-  position: "relative",
-  marginRight: 10,
-  marginBottom: 10,
-},
-removeButton: {
-  position: "absolute",
-  top: -8,
-  right: -8,
-  backgroundColor: "red",
-  borderRadius: 12,
-  width: 24,
-  height: 24,
-  justifyContent: "center",
-  alignItems: "center",
-},
-removeButtonText: {
-  color: "#fff",
-  fontWeight: "bold",
-  fontSize: 14,
-},
+    position: "relative",
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  removeButton: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "red",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  removeButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
 
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingText: {
+    color: "#fff",
+    marginTop: 10,
+    fontSize: 16,
+  },
 });
